@@ -17,7 +17,7 @@
 ### Prerequisites
 
 - **Node.js** 18+ 
-- **Python** 3.11+
+- **Python** 3.12+
 - **Docker** (สำหรับ Neo4j)
 
 ### 1. Clone & Install
