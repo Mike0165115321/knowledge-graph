@@ -1,0 +1,20 @@
+# Backend dependencies for Knowledge Graph system
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+
+# Google AI
+google-generativeai
+langchain-google-genai
+langchain
+langchain-community
+
+# Database
+neo4j
+
+# PDF parsing (optional)
+pdfplumber
+
+# Utilities
+httpx

@@ -1,0 +1,11 @@
+services:
+  neo4j:
+    image: neo4j:latest
+    container_name: nexus-db
+    ports:
+      - "7475:7474" # HTTP port for Neo4j Browser (ใช้ 7475 เพราะ 7474 ถูกใช้โดย feng-brain)
+      - "7688:7687" # Bolt port for driver connection (ใช้ 7688 เพราะ 7687 ถูกใช้)
+    environment:
+      - NEO4J_AUTH=neo4j/password # Username: neo4j, Password: password (แก้ได้)
+    volumes:
+      - ./data/neo4j:/data

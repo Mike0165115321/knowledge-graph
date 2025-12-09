@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Neo4j data
+data/neo4j/
+
+# Python venv
+backend/venv/
