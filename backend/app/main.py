@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from .core import neo4j_client, settings
 from .agents import debate_orchestrator
+from .agents.enhanced_debate import get_enhanced_debate
 
 
 # ==================== FastAPI App ====================
@@ -49,10 +50,23 @@ class DebateRequest(BaseModel):
     content: Optional[str] = None
 
 
+class EnhancedDebateRequest(BaseModel):
+    topic: str
+    rounds: int = 2
+
+
 class DebateResponse(BaseModel):
     topic: str
     predator_message: str
     guardian_message: str
+    new_nodes: int
+    new_edges: int
+
+
+class EnhancedDebateResponse(BaseModel):
+    topic: str
+    rounds: int
+    conversation: List[dict]
     new_nodes: int
     new_edges: int
 
@@ -140,6 +154,40 @@ async def trigger_debate(request: DebateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/enhanced-debate", response_model=EnhancedDebateResponse)
+async def trigger_enhanced_debate(request: EnhancedDebateRequest):
+    """
+    Trigger enhanced multi-round debate with RAG
+    - 2 Reader agents (Attacker + Defender) access book content
+    - They debate for multiple rounds
+    - 1 Analyst agent extracts knowledge graph
+    """
+    try:
+        debate_system = get_enhanced_debate(data_dir="data")
+        
+        result = debate_system.run_debate(
+            topic=request.topic,
+            rounds=request.rounds,
+            delay=1.0
+        )
+        
+        # Save to Neo4j
+        if result['nodes']:
+            neo4j_client.create_nodes_batch(result['nodes'])
+        if result['edges']:
+            neo4j_client.create_edges_batch(result['edges'])
+        
+        return EnhancedDebateResponse(
+            topic=result['topic'],
+            rounds=result['rounds'],
+            conversation=result['conversation'],
+            new_nodes=len(result['nodes']),
+            new_edges=len(result['edges'])
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/stats")
 async def get_stats():
     """Get database statistics"""
@@ -160,3 +208,4 @@ async def get_stats():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

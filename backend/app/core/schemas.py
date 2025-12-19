@@ -31,6 +31,9 @@ class EdgeType(str, Enum):
     MENTIONED_IN = "mentioned_in"             # กล่าวถึงใน
     USES = "uses"                             # ใช้
     EXPLOITS = "exploits"                     # ใช้ประโยชน์จาก
+    ENABLES = "enables"                       # ทำให้สามารถ
+    CONTRADICTS = "contradicts"               # ขัดแย้งกับ
+    SUPPORTS = "supports"                     # สนับสนุน
 
 
 class GraphNode(BaseModel):
