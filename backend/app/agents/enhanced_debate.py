@@ -114,7 +114,10 @@ class ReaderAgent:
     
     def _refresh_key(self):
         """Refresh API key if rate limited"""
+        settings.rotate_api_key() # FORCE ROTATION
         api_key = settings.get_api_key()
+        print(f"    🔄 Rotated Key for {self.name} (Index: {settings.api_key_manager.current_index})")
+        
         self._llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             google_api_key=api_key,
@@ -200,7 +203,10 @@ class AnalystAgent:
         )
     
     def _refresh_key(self):
+        settings.rotate_api_key() # FORCE ROTATION
         api_key = settings.get_api_key()
+        print(f"    🔄 Rotated Analyst Key (Index: {settings.api_key_manager.current_index})")
+        
         self._llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             google_api_key=api_key,
@@ -221,7 +227,8 @@ class AnalystAgent:
         ])
         
         prompt = f"""
-คุณคือนักวิเคราะห์ความรู้ วิเคราะห์บทสนทนาต่อไปนี้และสกัดเป็น Knowledge Graph
+คุณคือนักวิเคราะห์ความรู้ระดับสูง (Senior Knowledge Graph Architect) 
+หน้าที่ของคุณคือ "ขุด" (Mine) ความรู้จากบทสนทนาให้ได้มากที่สุดเท่าที่จะเป็นไปได้ อย่าทิ้งประเด็นสำคัญ
 
 หัวข้อ: {topic}
 
@@ -230,20 +237,30 @@ class AnalystAgent:
 
 ---
 
-สกัด nodes และ edges เป็น JSON:
+ภารกิจ:
+1. วิเคราะห์บทสนทนาอย่างละเอียดทุกประโยค
+2. สกัด Nodes ออกมาให้ "เยอะที่สุด" เท่าที่จะทำได้ (อย่างน้อย 10-20 Nodes ถ้าทำได้)
+3. เชื่อมโยงความสัมพันธ์ (Edges) ให้ซับซ้อนและครอบคลุม
+4. ห้ามทิ้งรายละเอียดเล็กน้อยที่เป็นเทคนิค (Technique) หรือ ความเสี่ยง (Risk)
 
-NODES (แต่ละ node มี):
-- id: unique identifier (snake_case)
-- name: ชื่อที่อ่านได้
-- type: concept/technique/risk/defense/outcome/insight
-- description: คำอธิบายสั้นๆ
+รูปแบบ Graph Schema:
 
-EDGES (ความสัมพันธ์ระหว่าง nodes):
-- source: id ของ node ต้นทาง
-- target: id ของ node ปลายทาง  
-- type: causes/prevents/enables/contradicts/supports/relates_to
+NODES:
+- id: unique_id (snake_case language agnostic, e.g., 'psychological_manipulation')
+- name: ชื่อที่กระชับ สื่อความหมาย (ภาษาไทย)
+- type: เลือกจาก [concept, technique, risk, defense, example, principle, bias, fallacy]
+- description: คำอธิบายสั้นๆ 1 ประโยค
 
-ตอบเป็น JSON format เท่านั้น:
+EDGES:
+- source: node_id ต้นทาง
+- target: node_id ปลายทาง
+- type: เลือกจาก [causes, prevents, is_a, part_of, uses, counters, leads_to, correlated_with]
+
+สำคัญ: 
+- ขอปริมาณ (Quantity) และ คุณภาพ (Quality) สูงสุด
+- อย่าสรุปย่อจนความหาย
+
+ตอบเป็น JSON เท่านั้น:
 ```json
 {{
   "nodes": [...],
@@ -273,11 +290,14 @@ EDGES (ความสัมพันธ์ระหว่าง nodes):
                 continue
             except Exception as e:
                 if "429" in str(e) or "quota" in str(e).lower():
-                    print(f"    ⚠️ Rate limit, switching key...")
+                    wait_time = (attempt + 1) * 15 # Progressive backoff: 15s, 30s, 45s
+                    print(f"    ⚠️ Rate limit hit. Cooling down for {wait_time}s and switching key...")
+                    time.sleep(wait_time) 
                     self._refresh_key()
-                    time.sleep(2)
                 else:
-                    raise e
+                    print(f"    ❌ Error extracting graph: {e}")
+                    # Don't crash the debate for graph failure, just return empty to keep UI running
+                    return [], []
         
         return [], []
     
@@ -451,6 +471,77 @@ class EnhancedDebateSystem:
             "raw_edges": raw_edges
         }
     
+    def stream_debate(
+        self, 
+        topic: str, 
+        rounds: int = 3,
+        delay: float = 1.0
+    ):
+        """
+        Generator that streams debate progress
+        Yields: Dict with keys 'type', 'agent', 'content', 'data'
+        """
+        conversation = []
+        
+        yield {
+            "type": "start", 
+            "topic": topic,
+            "message": f"🔥 Starting debate on: {topic}"
+        }
+        
+        for round_num in range(rounds):
+            yield {"type": "info", "message": f"\n--- Round {round_num + 1}/{rounds} ---"}
+            
+            # Attacker speaks
+            yield {"type": "thinking", "agent": "🔴 Attacker"}
+            attacker_response = self.attacker.respond(topic, conversation)
+            conversation.append({
+                "agent": "🔴 Attacker",
+                "content": attacker_response
+            })
+            yield {
+                "type": "message", 
+                "agent": "🔴 Attacker", 
+                "content": attacker_response
+            }
+            time.sleep(delay)
+            
+            # Defender responds
+            yield {"type": "thinking", "agent": "🟢 Defender"}
+            defender_response = self.defender.respond(topic, conversation)
+            conversation.append({
+                "agent": "🟢 Defender",
+                "content": defender_response
+            })
+            yield {
+                "type": "message", 
+                "agent": "🟢 Defender", 
+                "content": defender_response
+            }
+            time.sleep(delay)
+
+            # Incremental Analysis (Analyst peeks every round)
+            yield {"type": "thinking", "agent": "🔵 Analyst", "message": f"Analyzing Round {round_num + 1}..."}
+            
+            # Analyze conversation so far
+            raw_nodes, raw_edges = self.analyst.analyze_and_extract(topic, conversation)
+            nodes, edges = self.analyst.convert_to_schema(
+                raw_nodes, raw_edges, 
+                source=f"Debate: {topic}"
+            )
+            
+            yield {
+                "type": "graph_update", 
+                "nodes": [n.dict() for n in nodes],
+                "edges": [e.dict() for e in edges],
+                "stats": {"nodes": len(nodes), "edges": len(edges)}
+            }
+        
+        yield {
+            "type": "complete",
+            "conversation": conversation
+        }
+
     def run_batch_debates(
         self,
         topics: List[str],
