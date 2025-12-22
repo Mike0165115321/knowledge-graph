@@ -75,6 +75,22 @@ cmd_debate() {
     streamlit run app/debate_ui.py --server.port 8501
 }
 
+cmd_auto_debate() {
+    echo -e "${BLUE}╔══════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║   🤖 Auto Debate (Batch Mode)        ║${NC}"
+    echo -e "${BLUE}╚══════════════════════════════════════╝${NC}"
+    
+    ensure_neo4j
+    
+    echo -e "${GREEN}🤖 Starting Auto Debate System...${NC}"
+    cd backend
+    source venv/bin/activate
+    
+    # Pass remaining arguments to the script
+    shift 2>/dev/null || true
+    python scripts/run_enhanced_debate.py "$@"
+}
+
 cmd_db() {
     echo -e "${BLUE}╔══════════════════════════════════════╗${NC}"
     echo -e "${BLUE}║   🗃️ Neo4j Database Browser          ║${NC}"
@@ -147,7 +163,8 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  frontend   🌐 รัน Frontend ดูกราฟ 3D (port 3000)"
-    echo "  debate     🎭 รัน AI Debate สร้างข้อมูล (port 8501)"
+    echo "  debate       🎭 รัน AI Debate UI (port 8501)"
+    echo "  auto-debate  🤖 รัน Auto Debate จาก topics.txt"
     echo "  db         🗃️ เปิด Neo4j Browser (port 7475)"
     echo "  backup     💾 สร้าง Backup ฐานข้อมูล"
     echo "  restore    🔄 กู้คืนจาก Backup ล่าสุด"
@@ -161,8 +178,9 @@ show_help() {
 
 case "$1" in
     frontend)   cmd_frontend ;;
-    debate)     cmd_debate ;;
-    db)         cmd_db ;;
+    debate)       cmd_debate ;;
+    auto-debate)  cmd_auto_debate "$@" ;;
+    db)           cmd_db ;;
     backup)     cmd_backup ;;
     restore)    cmd_restore ;;
     help|--help|-h|"")

@@ -2,17 +2,21 @@ import streamlit as st
 import time
 import sys
 import os
+from pathlib import Path
 
 # Add parent directory to path to import app modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.agents.enhanced_debate import get_enhanced_debate
 from app.core.neo4j_client import neo4j_client
+from app.core.debate_history import (
+    save_debate, get_all_debates, get_debate, search_debates, delete_debate, get_stats as get_history_stats
+)
 from streamlit_agraph import agraph, Node, Edge, Config
 
 # Page Config
 st.set_page_config(
-    page_title="AI Debate Arena",
+    page_title="สังเวียน AI Debate",
     page_icon="⚔️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -28,196 +32,416 @@ st.markdown("""
     }
     .attacker-card { border-left: 5px solid #ff4b4b; }
     .defender-card { border-left: 5px solid #00c853; }
-    .analyst-card { border-left: 5px solid #29b6f6; background-color: #1f2937; }
-    .thinking { color: #8b949e; font-style: italic; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    .topic-card {
+        padding: 10px; border-radius: 6px; border: 1px solid #30363d;
+        background-color: #21262d; margin: 5px 0;
+    }
+    .topic-done { border-left: 4px solid #00c853; }
+    .topic-current { border-left: 4px solid #ffc107; background-color: #2d3748; }
+    .topic-pending { border-left: 4px solid #6b7280; }
+    .history-card {
+        padding: 12px; border-radius: 8px; border: 1px solid #30363d;
+        background-color: #161b22; margin: 8px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
-with st.sidebar:
-    st.title("⚔️ Controls")
-    topic_options = [
-        "การควบคุมคนอื่นโดยไม่ให้รู้ตัว",
-        "จุดอ่อนทางจิตวิทยาของมนุษย์",
-        "กลยุทธ์การสร้างอิทธิพล",
-        "การป้องกันตัวจากการถูกจัดการ",
-        "ศิลปะแห่งการโน้มน้าว",
-        "Custom Topic..."
-    ]
-    selected_topic = st.selectbox("Topic", topic_options)
-    topic = st.text_input("Custom Topic", "ความเงียบคืออาวุธ") if selected_topic == "Custom Topic..." else selected_topic
-    rounds = st.slider("Rounds", 1, 5, 2)
-    delay = st.slider("Speed", 0.5, 5.0, 2.0)
-    start_btn = st.button("🔥 Start Debate", type="primary", use_container_width=True)
+# ============================================
+# Helper Functions
+# ============================================
 
-# Initialize System with Spinner
-@st.cache_resource(show_spinner="⏳ Loading 120 books into memory... (This happens once)")
+TOPICS_FILE = Path("scripts/topics.txt")
+COMPLETED_FILE = Path("scripts/completed_topics.txt")
+
+def load_topics():
+    if not TOPICS_FILE.exists():
+        return []
+    topics = []
+    with open(TOPICS_FILE, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#'):
+                topics.append(line)
+    return topics
+
+def load_completed():
+    if not COMPLETED_FILE.exists():
+        return set()
+    with open(COMPLETED_FILE, 'r', encoding='utf-8') as f:
+        return {line.strip() for line in f if line.strip()}
+
+def save_completed(topic):
+    with open(COMPLETED_FILE, 'a', encoding='utf-8') as f:
+        f.write(f"{topic}\n")
+
+def clear_completed():
+    if COMPLETED_FILE.exists():
+        COMPLETED_FILE.unlink()
+
+# Initialize System
+@st.cache_resource(show_spinner="⏳ กำลังโหลดหนังสือ 120 เล่ม...")
 def get_system():
     return get_enhanced_debate(data_dir="data")
 
-# Load system before rendering main UI to ensure readiness
 try:
-    with st.spinner("🚀 Waking up AI Agents & Loading Library..."):
+    with st.spinner("🚀 กำลังปลุก AI Agents..."):
         system = get_system()
 except Exception as e:
     st.error(f"❌ Failed to load system: {e}")
     st.stop()
 
-st.title(f"🧠 AI Debate: {topic}")
+# ============================================
+# LAYOUT: Tabs
+# ============================================
 
-# Layout: 3 Columns
-col1, col2, col3 = st.columns([1, 1, 1.2])
+tab1, tab2, tab3, tab4 = st.tabs(["🎭 หัวข้อเดียว", "📋 รันอัตโนมัติ", "📖 ประวัติสนทนา", "📊 กราฟความรู้"])
 
-with col1: st.markdown("### 🔴 Attacker")
-with col2: st.markdown("### 🟢 Defender")
-with col3: st.markdown("### 🔵 Analyst (Graph)")
-
-# State management
-if "messages" not in st.session_state: st.session_state.messages = []
-if "graph_nodes" not in st.session_state: st.session_state.graph_nodes = []
-if "graph_edges" not in st.session_state: st.session_state.graph_edges = []
-
-# Helper to render messages
-def render_message(msg):
-    if msg['agent'] == "🔴 Attacker":
-        with col1:
-            st.markdown(f"<div class='agent-card attacker-card'>{msg['content']}</div>", unsafe_allow_html=True)
-    elif msg['agent'] == "🟢 Defender":
-        with col2:
-            st.markdown(f"<div class='agent-card defender-card'>{msg['content']}</div>", unsafe_allow_html=True)
-    elif msg['agent'] == "🔵 Analyst":
-        with col3:
-            st.markdown(f"<div class='agent-card analyst-card'><b>⚡ Insight:</b><br>{msg['content']}</div>", unsafe_allow_html=True)
-
-# Render History
-for msg in st.session_state.messages:
-    render_message(msg)
-
-# Persistent Graph Renderer
-if st.session_state.graph_nodes:
-    with col3:
-        visual_nodes = []
-        visual_edges = []
-        type_color = {
-            "concept": "#5e35b1", "technique": "#e53935",
-            "risk": "#fb8c00", "defense": "#43a047", "book": "#1e88e5"
-        }
+# ============================================
+# TAB 1: Single Topic
+# ============================================
+with tab1:
+    st.header("🎭 Debate หัวข้อเดียว")
+    
+    topic = st.text_input("หัวข้อ", "ความเงียบคืออาวุธ", key="single_topic")
+    col_r, col_d = st.columns(2)
+    with col_r:
+        rounds = st.slider("จำนวนรอบ", 1, 5, 2, key="single_rounds")
+    with col_d:
+        delay = st.slider("หน่วงเวลา (วินาที)", 1, 10, 3, key="single_delay")
+    
+    if "single_running" not in st.session_state:
+        st.session_state.single_running = False
+    if "single_messages" not in st.session_state:
+        st.session_state.single_messages = []
+    
+    if not st.session_state.single_running:
+        if st.button("🔥 เริ่ม Debate", type="primary", key="single_start"):
+            st.session_state.single_running = True
+            st.session_state.single_messages = []
+            st.rerun()
+    else:
+        if st.button("⏹️ หยุด", key="single_stop"):
+            st.session_state.single_running = False
+            st.rerun()
         
-        seen_ids = set()
-        for n in st.session_state.graph_nodes:
-            if n['id'] not in seen_ids:
-                # Sanitize ID for visual (keep original for Label)
-                safe_id = str(n['id']).replace(" ", "_")
+        col1, col2 = st.columns(2)
+        node_count = 0
+        edge_count = 0
+        
+        with st.status("🤖 กำลัง Debate...", expanded=True):
+            try:
+                for event in system.stream_debate(topic=topic, rounds=rounds, delay=delay):
+                    if not st.session_state.single_running:
+                        break
+                    
+                    if event['type'] == 'message':
+                        st.session_state.single_messages.append(event)
+                        if "Attacker" in event['agent']:
+                            with col1:
+                                st.markdown(f"**🔴 ผู้โจมตี:**\n\n{event['content']}")
+                        elif "Defender" in event['agent']:
+                            with col2:
+                                st.markdown(f"**🟢 ผู้ป้องกัน:**\n\n{event['content']}")
+                    
+                    elif event['type'] == 'graph_update':
+                        node_count += len(event['nodes'])
+                        edge_count += len(event['edges'])
+                        
+                        from app.core.schemas import GraphNode, GraphEdge
+                        for n in event['nodes']:
+                            try: neo4j_client.create_node(GraphNode(**n))
+                            except: pass
+                        for e in event['edges']:
+                            try: neo4j_client.create_edge(GraphEdge(**e))
+                            except: pass
+                        
+                        st.toast(f"💾 บันทึก {len(event['nodes'])} nodes!")
                 
-                visual_nodes.append(Node(
-                    id=safe_id, 
-                    label=n['name'], 
-                    size=15,
-                    color=type_color.get(n.get('type', 'concept'), "#5e35b1"),
-                    # Explicitly set image to None/Empty to prevent local file lookup
-                    image=""
-                ))
-                seen_ids.add(n['id'])
+                # Save to history
+                if st.session_state.single_messages:
+                    save_debate(
+                        topic=topic,
+                        messages=st.session_state.single_messages,
+                        rounds=rounds,
+                        node_count=node_count,
+                        edge_count=edge_count
+                    )
+                    st.toast("📖 บันทึกประวัติแล้ว!")
+                
+                st.session_state.single_running = False
+                st.success("✅ Debate เสร็จสิ้น!")
+                
+            except Exception as e:
+                st.error(f"Error: {e}")
+                st.session_state.single_running = False
+    
+    if st.session_state.single_messages:
+        st.subheader("📜 บทสนทนา")
+        for msg in st.session_state.single_messages:
+            with st.expander(msg['agent'], expanded=False):
+                st.write(msg['content'])
+
+# ============================================
+# TAB 2: Auto Queue
+# ============================================
+with tab2:
+    st.header("📋 รัน Debate อัตโนมัติ")
+    
+    topics = load_topics()
+    completed = load_completed()
+    pending = [t for t in topics if t not in completed]
+    
+    col_a, col_b, col_c = st.columns(3)
+    col_a.metric("📄 ทั้งหมด", len(topics))
+    col_b.metric("✅ เสร็จแล้ว", len(completed))
+    col_c.metric("⏳ รอดำเนินการ", len(pending))
+    
+    with st.expander("⚙️ ตั้งค่า"):
+        delay_between = st.slider("หน่วงเวลาระหว่างหัวข้อ (วินาที)", 10, 120, 30, key="auto_delay")
+        auto_rounds = st.slider("จำนวนรอบต่อหัวข้อ", 1, 3, 2, key="auto_rounds")
+        if st.button("🗑️ รีเซ็ตความคืบหน้า"):
+            clear_completed()
+            st.rerun()
+    
+    if "auto_running" not in st.session_state:
+        st.session_state.auto_running = False
+    if "auto_current" not in st.session_state:
+        st.session_state.auto_current = None
+    
+    if not st.session_state.auto_running:
+        if pending:
+            if st.button("🚀 เริ่มรันอัตโนมัติ", type="primary", use_container_width=True):
+                st.session_state.auto_running = True
+                st.rerun()
+        else:
+            st.success("🎉 ทุกหัวข้อเสร็จสิ้นแล้ว!")
+    else:
+        if st.button("⏹️ หยุดคิว", type="secondary", use_container_width=True):
+            st.session_state.auto_running = False
+            st.rerun()
         
-        for e in st.session_state.graph_edges:
-            visual_edges.append(Edge(
-                source=str(e['source']).replace(" ", "_"), 
-                target=str(e['target']).replace(" ", "_"), 
-                label=e.get('type', ''), 
-                color="#8b949e"
-            ))
+        progress = st.progress(0)
+        status_text = st.empty()
+        
+        # Single container for conversation (works better with streaming)
+        st.markdown("---")
+        st.subheader("💬 สนทนาสด")
+        conversation_area = st.container()
+        
+        st.markdown("---")
+        log_area = st.container()
+        
+        for i, topic in enumerate(pending):
+            if not st.session_state.auto_running:
+                break
             
-        config = Config(width=450, height=450, directed=True, physics=True, hierarchical=False)
-        st.caption(f"🕸️ Nodes: {len(visual_nodes)} | Edges: {len(visual_edges)}")
-        agraph(nodes=visual_nodes, edges=visual_edges, config=config)
+            st.session_state.auto_current = topic
+            progress.progress(i / len(pending))
+            status_text.markdown(f"**[{i+1}/{len(pending)}]** 🎭 **{topic}**")
+            
+            messages = []
+            node_count = 0
+            edge_count = 0
+            
+            # Show topic header in conversation
+            with conversation_area:
+                st.markdown(f"### 🎯 {topic}")
+            
+            try:
+                for event in system.stream_debate(topic=topic, rounds=auto_rounds, delay=3):
+                    if not st.session_state.auto_running:
+                        break
+                    
+                    if event['type'] == 'message':
+                        messages.append(event)
+                        agent = event['agent']
+                        content = event['content']
+                        
+                        # Display in conversation area (sequential)
+                        with conversation_area:
+                            if "Attacker" in agent:
+                                st.markdown(f"**🔴 ผู้โจมตี:**")
+                                st.info(content)
+                            elif "Defender" in agent:
+                                st.markdown(f"**🟢 ผู้ป้องกัน:**")
+                                st.success(content)
+                    
+                    elif event['type'] == 'graph_update':
+                        nodes = event['nodes']
+                        edges = event['edges']
+                        node_count += len(nodes)
+                        edge_count += len(edges)
+                        
+                        from app.core.schemas import GraphNode, GraphEdge
+                        for n in nodes:
+                            try: neo4j_client.create_node(GraphNode(**n))
+                            except: pass
+                        for e in edges:
+                            try: neo4j_client.create_edge(GraphEdge(**e))
+                            except: pass
+                        
+                        with conversation_area:
+                            st.caption(f"📊 สกัดได้ {len(nodes)} nodes, {len(edges)} edges")
+                
+                # Save to SQLite history
+                save_debate(
+                    topic=topic,
+                    messages=messages,
+                    rounds=auto_rounds,
+                    node_count=node_count,
+                    edge_count=edge_count
+                )
+                
+                save_completed(topic)
+                with log_area:
+                    st.success(f"✅ **{topic}** - บันทึก {node_count} nodes")
+                
+                # Delay before next
+                if i < len(pending) - 1:
+                    with conversation_area:
+                        st.markdown("---")
+                    for sec in range(delay_between, 0, -1):
+                        status_text.markdown(f"⏸️ **รอ {sec} วินาที** ก่อนหัวข้อถัดไป...")
+                        time.sleep(1)
+                        if not st.session_state.auto_running:
+                            break
+                
+            except Exception as e:
+                with log_area:
+                    st.error(f"❌ {topic}: {e}")
+                time.sleep(30)
+        
+        st.session_state.auto_running = False
+        st.session_state.auto_current = None
+        progress.progress(1.0)
+        status_text.markdown("🎉 **Debate ทั้งหมดเสร็จสิ้น!**")
+        st.balloons()
+    
+    st.subheader("📋 คิวหัวข้อ")
+    for topic in topics:
+        if topic in completed:
+            st.markdown(f"<div class='topic-card topic-done'>✅ {topic}</div>", unsafe_allow_html=True)
+        elif topic == st.session_state.auto_current:
+            st.markdown(f"<div class='topic-card topic-current'>🔄 {topic}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='topic-card topic-pending'>⏳ {topic}</div>", unsafe_allow_html=True)
 
-# Logic
-if "running" not in st.session_state:
-    st.session_state.running = False
+# ============================================
+# TAB 3: Chat History
+# ============================================
+with tab3:
+    st.header("📖 ประวัติการ Debate")
+    
+    # Stats
+    try:
+        stats = get_history_stats()
+        col1, col2 = st.columns(2)
+        col1.metric("📚 Debate ทั้งหมด", stats['debates'])
+        col2.metric("💬 ข้อความทั้งหมด", stats['messages'])
+    except:
+        pass
+    
+    # Search
+    search_query = st.text_input("🔍 ค้นหาหัวข้อ", key="history_search")
+    
+    # Load debates
+    if search_query:
+        debates = search_debates(search_query)
+    else:
+        debates = get_all_debates()
+    
+    if not debates:
+        st.info("ยังไม่มีประวัติ - ลองรัน Debate ก่อน!")
+    else:
+        # Select debate
+        st.subheader(f"📋 พบ {len(debates)} รายการ")
+        
+        for debate in debates:
+            with st.expander(f"🎭 {debate['topic']} ({debate['created_at'][:10]})", expanded=False):
+                st.caption(f"Rounds: {debate['rounds']} | Nodes: {debate['node_count']} | Edges: {debate['edge_count']}")
+                
+                # Load full debate
+                full_debate = get_debate(debate['id'])
+                
+                if full_debate and full_debate['messages']:
+                    for msg in full_debate['messages']:
+                        agent = msg['agent']
+                        content = msg['content']
+                        
+                        if "Attacker" in agent:
+                            st.markdown(f"<div class='agent-card attacker-card'><b>🔴 ผู้โจมตี</b><br>{content}</div>", unsafe_allow_html=True)
+                        elif "Defender" in agent:
+                            st.markdown(f"<div class='agent-card defender-card'><b>🟢 ผู้ป้องกัน</b><br>{content}</div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<div class='agent-card'>{content}</div>", unsafe_allow_html=True)
+                else:
+                    st.warning("ไม่มีข้อความบันทึก")
+                
+                # Delete button
+                if st.button(f"🗑️ ลบ", key=f"del_{debate['id']}"):
+                    delete_debate(debate['id'])
+                    st.rerun()
 
-def start_debate_click():
-    st.session_state.running = True
-    st.session_state.messages = []
-    st.session_state.graph_nodes = []
-    st.session_state.graph_edges = []
-
-if not st.session_state.running:
-    # get_system() is cached and blocks until ready, so we can assume it's ready if we are here
-    st.button("🔥 Start Debate", type="primary", use_container_width=True, on_click=start_debate_click)
-else:
-    if st.button("⏹️ Stop Debate", type="secondary", use_container_width=True):
-        st.session_state.running = False
+# ============================================
+# TAB 4: Graph
+# ============================================
+with tab4:
+    st.header("📊 กราฟความรู้")
+    
+    if st.button("🔄 รีเฟรช", key="refresh_graph"):
         st.rerun()
-
-    with st.status("🤖 Debate in progress...", expanded=True) as status:
-        try:
-            for event in system.stream_debate(topic=topic, rounds=rounds, delay=delay):
-                if not st.session_state.running: break
-                
-                if event['type'] == 'info':
-                    st.toast(event['message'])
-                
-                elif event['type'] == 'thinking':
-                    agent = event['agent']
-                    msg = f"{event.get('message', 'Thinking...')} 💭"
-                    if "Attacker" in agent:
-                        with col1:
-                            st.caption(msg)
-                    elif "Defender" in agent:
-                        with col2:
-                            st.caption(msg)
-                    elif "Analyst" in agent:
-                        with col3:
-                            st.caption(msg)
-                
-                elif event['type'] == 'message':
-                    st.session_state.messages.append(event)
-                    render_message(event)
-                
-                elif event['type'] == 'graph_update':
-                    analyst_msg = {"agent": "🔵 Analyst", "content": f"Found {len(event['nodes'])} new nodes. Saving to Graph DB..."}
-                    st.session_state.messages.append(analyst_msg)
-                    render_message(analyst_msg)
-                    
-                    # 1. Update In-Memory State for UI
-                    st.session_state.graph_nodes.extend(event['nodes'])
-                    st.session_state.graph_edges.extend(event['edges'])
-                    st.session_state.needs_graph_rerun = True
-                    
-                    # 2. Persist to Neo4j (Real Database)
-                    try:
-                        # Reconstruct objects from dicts (since event['nodes'] are dicts)
-                        from app.core.schemas import GraphNode, GraphEdge, NodeType, EdgeType
-                        
-                        db_nodes = [GraphNode(**n) for n in event['nodes']]
-                        db_edges = [GraphEdge(**e) for e in event['edges']]
-                        
-                        count_n = 0
-                        for node in db_nodes:
-                            neo4j_client.create_node(node)
-                            count_n += 1
-                            
-                        count_e = 0
-                        for edge in db_edges:
-                            neo4j_client.create_edge(edge)
-                            count_e += 1
-                            
-                        print(f"✅ Saved to Neo4j: {count_n} nodes, {count_e} edges")
-                        st.toast(f"💾 Saved {count_n} nodes to Neo4j DB!")
-                        
-                    except Exception as e:
-                        print(f"❌ Failed to save to Neo4j: {e}")
-                        st.error(f"DB Save Error: {e}")
+    
+    try:
+        data = neo4j_client.get_all_graph_data()
+        nodes = data.get('nodes', [])
+        edges = data.get('edges', [])
+        stats = neo4j_client.get_stats()
+        
+        col_n, col_e = st.columns(2)
+        col_n.metric("🔵 Nodes", stats['nodes'])
+        col_e.metric("🔗 Edges", stats['edges'])
+        
+        if nodes:
+            type_color = {
+                "concept": "#5e35b1", "technique": "#e53935",
+                "risk": "#fb8c00", "defense": "#43a047", "book": "#1e88e5"
+            }
             
-            st.session_state.running = False
-            status.update(label="✅ Completed!", state="complete", expanded=False)
+            visual_nodes = [
+                Node(
+                    id=str(n['id']).replace(" ", "_"),
+                    label=n.get('name', n['id'])[:30],
+                    size=12,
+                    color=type_color.get(n.get('type', 'concept'), "#5e35b1")
+                )
+                for n in nodes[:200]
+            ]
             
-        except Exception as e:
-            st.error(f"Error during debate: {e}")
-            st.session_state.running = False
-
-# Force update graph if needed
-if st.session_state.get("needs_graph_rerun"):
-    st.session_state.needs_graph_rerun = False
-    st.rerun()
+            visual_edges = [
+                Edge(
+                    source=str(e['source']).replace(" ", "_"),
+                    target=str(e['target']).replace(" ", "_"),
+                    color="#8b949e"
+                )
+                for e in edges[:500]
+            ]
+            
+            config = Config(width=800, height=600, directed=True, physics=True, hierarchical=False)
+            agraph(nodes=visual_nodes, edges=visual_edges, config=config)
+            
+            # Node search
+            st.subheader("📋 รายการ Nodes")
+            search_node = st.text_input("🔍 ค้นหา", key="node_search")
+            
+            filtered = [n for n in nodes if search_node.lower() in n.get('name', '').lower()] if search_node else nodes
+            
+            for n in filtered[:30]:
+                with st.expander(f"🔹 {n.get('name', n['id'])}"):
+                    st.write(f"**ประเภท:** {n.get('type', 'N/A')}")
+                    if n.get('description'):
+                        st.write(n['description'])
+        else:
+            st.info("ยังไม่มีข้อมูลกราฟ - ลองรัน Debate ก่อน!")
+            
+    except Exception as e:
+        st.error(f"Error: {e}")
