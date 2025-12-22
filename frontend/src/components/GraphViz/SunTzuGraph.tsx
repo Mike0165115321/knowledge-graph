@@ -306,13 +306,8 @@ const CosmicGraph = () => {
   useEffect(() => {
     setIsMounted(true);
     fetchGraph();
-
-    // Auto-refresh every 5 seconds (Monitor Mode)
-    const interval = setInterval(() => {
-      fetchGraph();
-    }, 5000);
-
-    return () => clearInterval(interval);
+    // Auto-refresh disabled for performance
+    // Use the refresh button in the header instead
   }, [fetchGraph]);
 
   if (!isMounted) return null;
@@ -348,6 +343,11 @@ const CosmicGraph = () => {
               <button onClick={handleSearch}
                 className="px-5 py-2 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-sm font-medium hover:from-cyan-500 hover:to-blue-500 shadow-lg shadow-cyan-500/20">
                 🔍
+              </button>
+              <button onClick={() => fetchGraph()}
+                className="px-4 py-2 rounded-full bg-green-600/80 hover:bg-green-500 text-white text-sm font-medium shadow-lg transition-all"
+                title="รีเฟรชข้อมูล">
+                🔄
               </button>
             </div>
           </div>
