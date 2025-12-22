@@ -244,7 +244,8 @@ const CosmicGraph = () => {
       setError(null);
     } catch (err) {
       console.error('Failed to fetch graph:', err);
-      setError('ไม่สามารถโหลดข้อมูลกราฟได้');
+      // Suppress error in auto-refresh mode to avoid spam
+      // setError('ไม่สามารถโหลดข้อมูลกราฟได้');
     } finally {
       setLoading(false);
     }
@@ -305,6 +306,13 @@ const CosmicGraph = () => {
   useEffect(() => {
     setIsMounted(true);
     fetchGraph();
+
+    // Auto-refresh every 5 seconds (Monitor Mode)
+    const interval = setInterval(() => {
+      fetchGraph();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [fetchGraph]);
 
   if (!isMounted) return null;
@@ -354,7 +362,7 @@ const CosmicGraph = () => {
 
       {/* 3D Graph */}
       <div className="pt-32">
-        {loading ? (
+        {loading && !graphData.nodes.length ? (
           <LoadingScreen />
         ) : (
           <ForceGraph3D

@@ -1,24 +1,26 @@
-# 🧠 Knowledge Graph - กราฟเชื่อมโยงข้อมูล
+# 🧠 Project Sun Tzu - Knowledge Graph
 
-3D Cosmic Knowledge Graph Visualization สำหรับวิเคราะห์และแสดงผลความสัมพันธ์ของความรู้จากหนังสือต่างๆ
+3D Cosmic Knowledge Graph Visualization + AI Debate System สำหรับวิเคราะห์และสร้างความรู้ใหม่จากหนังสือต่างๆ
 
-![3D Graph](https://img.shields.io/badge/3D-Graph-blue) ![Neo4j](https://img.shields.io/badge/Neo4j-Database-green) ![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![Neo4j](https://img.shields.io/badge/Neo4j-Native-green) ![Next.js](https://img.shields.io/badge/Next.js-16-black) ![Streamlit](https://img.shields.io/badge/Streamlit-Debate_UI-red)
 
 ## ✨ Features
 
-- 🌌 **3D Neural Network Visualization** - กราฟ 3 มิติแบบ force-directed พร้อม glow effects
+- 🌌 **3D Neural Network Visualization** - กราฟ 3 มิติ WebGL พร้อม glow effects (60 FPS)
 - ⚡ **Synapse Particles** - อนุภาควิ่งตามเส้นเชื่อมเหมือนกระแสประสาท
+- 🤖 **AI Debate System** - 3 AI Agents (Attacker/Defender/Analyst) ถกเถียงสร้าง insights ใหม่
 - 🔍 **ค้นหาได้** - ค้นหา nodes และซูมไปยังตำแหน่ง
-- 📊 **3,297+ Nodes, 5,374+ Edges** - ข้อมูลจากหนังสือ 19+ เล่ม
-- 🤖 **AI Debate System** - 3 AI Agents ถกเถียงสร้าง insights ใหม่
+- � **Auto Backup** - ระบบ Backup/Restore ฐานข้อมูล
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Node.js** 18+ 
+- **Node.js** 18+
 - **Python** 3.12+
-- **Docker** (สำหรับ Neo4j)
+- **Java** 17+ (สำหรับ Neo4j)
 
 ### 1. Clone & Install
 
@@ -33,7 +35,6 @@ npm install
 cd backend
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# หรือ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
@@ -48,73 +49,75 @@ NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=password
 ```
 
-### 3. Start Neo4j Database
+### 3. Install Neo4j (First Time Only)
 
 ```bash
-docker compose up -d
+mkdir -p neo4j-local && cd neo4j-local
+wget https://neo4j.com/artifact.php?name=neo4j-community-5.26.0-unix.tar.gz -O neo4j.tar.gz
+tar -xzf neo4j.tar.gz && rm neo4j.tar.gz
+cd neo4j-community-5.26.0
+./bin/neo4j-admin dbms set-initial-password password
 ```
 
-รอสักครู่ให้ Neo4j พร้อมใช้งาน (~30 วินาที)
+---
 
-### 4. Import Data (Optional)
-
-ถ้าต้องการสร้างกราฟใหม่จาก JSONL:
+## 📜 Usage (Single Script)
 
 ```bash
-cd backend
-source venv/bin/activate
-python scripts/build_graph.py
+./run.sh [command]
 ```
 
-หรือ **import จาก exported data:**
+| Command | Description |
+|---------|-------------|
+| `./run.sh frontend` | 🌐 รัน Frontend ดูกราฟ 3D (port 3000) |
+| `./run.sh debate` | 🎭 รัน AI Debate สร้างข้อมูล (port 8501) |
+| `./run.sh db` | 🗃️ เปิด Neo4j Browser (port 7475) |
+| `./run.sh backup` | 💾 สร้าง Backup ฐานข้อมูล |
+| `./run.sh restore` | 🔄 กู้คืนจาก Backup ล่าสุด |
+| `./run.sh help` | 📖 แสดงวิธีใช้ |
 
-```bash
-# เปิด Neo4j Browser: http://localhost:7475
-# แล้ว import จาก exports/graph_data.json
-```
+---
 
-### 5. Start Servers
+## 🌐 URLs
 
-**Terminal 1 - Backend:**
-```bash
-cd backend
-source venv/bin/activate
-uvicorn app.main:app --reload
-```
-
-**Terminal 2 - Frontend:**
-```bash
-npm run dev
-```
-
-### 6. Open Browser
-
-🌐 **Frontend:** http://localhost:3000
-🔧 **API Docs:** http://localhost:8000/docs
-🗄️ **Neo4j Browser:** http://localhost:7475
+| Service | URL |
+|---------|-----|
+| **Frontend (Graph 3D)** | http://localhost:3000 |
+| **Debate UI (Streamlit)** | http://localhost:8501 |
+| **Backend API** | http://localhost:8000 |
+| **Neo4j Browser** | http://localhost:7475 |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-knowledge-graph/
+project-sun-tzu/
 ├── app/                    # Next.js pages
 ├── frontend/src/           # React components
 │   └── components/GraphViz/
-│       └── SunTzuGraph.tsx # 3D Graph Component
+│       └── SunTzuGraph.tsx # 3D Graph Component  
 ├── backend/
 │   ├── app/
-│   │   ├── agents/         # AI Agents (Predator, Guardian, Cartographer)
-│   │   ├── core/           # Config, Neo4j client, Schemas
-│   │   ├── extractors/     # Base graph extractor
+│   │   ├── agents/         # AI Agents
+│   │   ├── core/           # Config, Neo4j client
+│   │   ├── debate_ui.py    # Streamlit Debate UI
 │   │   └── main.py         # FastAPI server
-│   ├── data/               # JSONL source files
-│   └── scripts/            # Build scripts
-├── exports/
-│   └── graph_data.json     # Exported graph (3297 nodes, 5374 edges)
-└── docker-compose.yml      # Neo4j container
+│   └── data/               # JSONL source files
+├── neo4j-local/            # Neo4j Native Installation
+├── backups/                # Database backups
+└── run.sh                  # Master control script
 ```
+
+---
+
+## 🤖 AI Agents
+
+| Agent | Role |
+|-------|------|
+| **Attacker** 🔴 | วิเคราะห์เทคนิคเชิงรุก หาจุดอ่อน |
+| **Defender** 🟢 | วิเคราะห์การป้องกัน หาทางแก้ |
+| **Analyst** 🔵 | สกัด Knowledge Graph จากการถกเถียง |
 
 ---
 
@@ -125,38 +128,15 @@ knowledge-graph/
 | **ลากเมาส์** | หมุนกราฟ 3D |
 | **Scroll** | ซูมเข้า/ออก |
 | **คลิก Node** | ดูรายละเอียด + ซูมไปที่ node |
-| **ค้นหา** | พิมพ์ชื่อแล้วกด Enter |
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Next.js 16, React, react-force-graph-3d, Three.js, TailwindCSS
-- **Backend:** FastAPI, Python, LangChain
-- **Database:** Neo4j (Docker)
+- **Frontend:** Next.js 16, React, react-force-graph-3d, Three.js
+- **Backend:** FastAPI, Python, LangChain, Streamlit
+- **Database:** Neo4j (Native Installation)
 - **AI:** Google Gemini 2.5 Flash
-
----
-
-## 📚 Data Sources
-
-หนังสือที่ใช้สร้าง Knowledge Graph:
-- ตำราพิชัยสงคราม (The Art of War) - ซุนวู
-- The 48 Laws of Power - Robert Greene
-- Atomic Habits - James Clear
-- Deep Work - Cal Newport
-- จิตวิทยาสายดาร์ก
-- และอีกมากมาย...
-
----
-
-## 🤖 AI Agents
-
-| Agent | Role |
-|-------|------|
-| **Predator** 🔴 | วิเคราะห์เทคนิคเชิงรุก การโจมตี |
-| **Guardian** 🟢 | วิเคราะห์การป้องกัน จุดอ่อน |
-| **Cartographer** 🔵 | สกัด nodes/edges จากการถกเถียง |
 
 ---
 

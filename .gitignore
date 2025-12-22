@@ -45,3 +45,4 @@ data/neo4j/
 
 # Python venv
 backend/venv/
+neo4j-local/
