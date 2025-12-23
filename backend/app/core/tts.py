@@ -12,27 +12,27 @@ from mutagen.mp3 import MP3
 AGENT_VOICES = {
     "Attacker": {
         "voice": "th-TH-NiwatNeural",
-        "pitch": "-5Hz",
-        "volume": "+10%",
-        "rate": "+0%"
+        "pitch": "-15Hz",     # ทุ้มลึก หนักแน่น
+        "volume": "+15%",     # ดังชัดขึ้น
+        "rate": "-5%"        # ช้าลง มีน้ำหนัก
     },
     "Defender": {
         "voice": "th-TH-PremwadeeNeural",
-        "pitch": "+0Hz",
-        "volume": "+10%",
-        "rate": "+0%"
+        "pitch": "+5Hz",
+        "volume": "+5%",
+        "rate": "-5%"
     },
     "Strategist": {
         "voice": "th-TH-NiwatNeural",
-        "pitch": "+10Hz",
-        "volume": "+10%",
-        "rate": "-5%"  # Slightly slower for authority
+        "pitch": "+5Hz",
+        "volume": "+5%",
+        "rate": "-5%"
     },
     "default": {
         "voice": "th-TH-NiwatNeural",
         "pitch": "+0Hz",
         "volume": "+10%",
-        "rate": "+0%"
+        "rate": "-5%"
     }
 }
 
