@@ -13,6 +13,7 @@
 - 📚 **RAG Knowledge Base** - ค้นหาข้อมูลจากหนังสือ 120+ เล่มด้วย Vector Search
 - 🔍 **Interactive Graph** - ค้นหา nodes และซูมไปยังตำแหน่ง
 - 💾 **Auto Backup** - ระบบ Backup/Restore ฐานข้อมูล
+- 🔊 **Text-to-Speech (TTS)** - ฟังเสียง AI โต้วาทีแบบ Multi-Voice (edge-tts)
 
 👉 **[อ่านเอกสารโครงสร้างระบบฉบับเต็ม (System Architecture)](docs/SYSTEM_ARCHITECTURE.md)**
 
@@ -167,6 +168,7 @@ project-sun-tzu/
 - **Backend:** Python 3.12, LangChain, Streamlit, FAISS (Vector DB)
 - **Database:** Neo4j (Native Installation)
 - **AI:** Google Gemini 2.5 Flash
+- **TTS:** Edge-TTS (Microsoft Azure Neural Voices)
 
 ---
 

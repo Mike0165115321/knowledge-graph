@@ -3,6 +3,8 @@ fastapi
 uvicorn[standard]
 python-dotenv
 pydantic
+edge-tts
+mutagen
 
 # Google AI
 google-generativeai

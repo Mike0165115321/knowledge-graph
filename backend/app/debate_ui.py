@@ -12,7 +12,45 @@ from app.core.neo4j_client import neo4j_client
 from app.core.debate_history import (
     save_debate, get_all_debates, get_debate, search_debates, delete_debate, get_stats as get_history_stats
 )
+from app.core import tts
 from streamlit_agraph import agraph, Node, Edge, Config
+
+# ============================================
+# TTS Helper
+# ============================================
+
+def render_message_with_tts(agent, content, key_prefix, auto_play=False):
+    """
+    Renders a message with optional TTS. If auto_play=True, generates and plays immediately.
+    """
+    # Determine style based on agent
+    style_class = "agent-card"
+    label = agent
+    if "Attacker" in agent:
+        style_class = "agent-card attacker-card"
+        label = "🔴 ผู้โจมตี"
+    elif "Defender" in agent:
+        style_class = "agent-card defender-card"
+        label = "🟢 ผู้ป้องกัน"
+    elif "Strategist" in agent:
+        style_class = "agent-card strategist-card"
+        label = "🟣 Strategist"
+    
+    # Display message card
+    st.markdown(f"<div class='{style_class}'><b>{label}</b><br>{content}</div>", unsafe_allow_html=True)
+    
+    # Auto-play mode: generate and play immediately
+    if auto_play:
+        audio_bytes = tts.get_audio_for_agent(content, agent)
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/mp3", autoplay=True)
+    else:
+        # Manual button mode
+        btn_key = f"tts_{key_prefix}"
+        if st.button("🔊 ฟังเสียง", key=btn_key):
+            audio_bytes = tts.get_audio_for_agent(content, agent)
+            if audio_bytes:
+                st.audio(audio_bytes, format="audio/mp3", start_time=0)
 
 # Page Config
 st.set_page_config(
@@ -92,6 +130,27 @@ except Exception as e:
     st.stop()
 
 # ============================================
+# SIDEBAR: Settings
+# ============================================
+
+with st.sidebar:
+    st.header("⚙️ ตั้งค่า TTS")
+    
+    if "tts_auto_play" not in st.session_state:
+        st.session_state.tts_auto_play = False
+    
+    st.session_state.tts_auto_play = st.toggle(
+        "🔊 เปิดเสียงอัตโนมัติ",
+        value=st.session_state.tts_auto_play,
+        help="เมื่อเปิด AI จะพูดออกเสียงอัตโนมัติเมื่อสร้างข้อความเสร็จ"
+    )
+    
+    if st.session_state.tts_auto_play:
+        st.success("🎙️ โหมดคุยสด: เสียงจะเล่นอัตโนมัติ")
+    else:
+        st.info("🔇 โหมดเงียบ: กดปุ่มเพื่อฟังเสียง")
+
+# ============================================
 # LAYOUT: Tabs
 # ============================================
 
@@ -137,14 +196,7 @@ with tab1:
                     
                     if event['type'] == 'message':
                         st.session_state.single_messages.append(event)
-                        if "Attacker" in event['agent']:
-                            with col1:
-                                st.markdown(f"**🔴 ผู้โจมตี:**\n\n{event['content']}")
-                        elif "Defender" in event['agent']:
-                            with col2:
-                                st.markdown(f"**🟢 ผู้ป้องกัน:**\n\n{event['content']}")
-                        elif "Strategist" in event['agent']:
-                            st.markdown(f"**🟣 Strategist:**\n\n{event['content']}")
+                        render_message_with_tts(event['agent'], event['content'], f"single_{len(st.session_state.single_messages)}", auto_play=st.session_state.tts_auto_play)
                     
                     elif event['type'] == 'graph_update':
                         node_count += len(event['nodes'])
@@ -180,9 +232,9 @@ with tab1:
     
     if st.session_state.single_messages:
         st.subheader("📜 บทสนทนา")
-        for msg in st.session_state.single_messages:
+        for i, msg in enumerate(st.session_state.single_messages):
             with st.expander(msg['agent'], expanded=False):
-                st.write(msg['content'])
+                render_message_with_tts(msg['agent'], msg['content'], f"history_single_{i}")
 
 # ============================================
 # TAB 2: Auto Queue
@@ -262,15 +314,7 @@ with tab2:
                         
                         # Display in conversation area (sequential)
                         with conversation_area:
-                            if "Attacker" in agent:
-                                st.markdown(f"**🔴 ผู้โจมตี:**")
-                                st.info(content)
-                            elif "Defender" in agent:
-                                st.markdown(f"**🟢 ผู้ป้องกัน:**")
-                                st.success(content)
-                            elif "Strategist" in agent:
-                                st.markdown(f"**🟣 Strategist:**")
-                                st.warning(content)
+                            render_message_with_tts(agent, content, f"auto_{i}_{len(messages)}", auto_play=st.session_state.tts_auto_play)
                     
                     elif event['type'] == 'graph_update':
                         nodes = event['nodes']
@@ -370,25 +414,74 @@ with tab3:
                 full_debate = get_debate(debate['id'])
                 
                 if full_debate and full_debate['messages']:
-                    for msg in full_debate['messages']:
+                    # "Play All" button for entire debate
+                    col_play, col_del = st.columns([0.8, 0.2])
+                    with col_play:
+                        if st.button("▶️ ฟังทั้งหัวข้อ", key=f"play_all_{debate['id']}", use_container_width=True):
+                            st.info("🎙️ กำลังสร้างเสียง... กรุณารอสักครู่")
+                            
+                            # Pre-generate all audio files
+                            import base64
+                            audio_data_list = []
+                            for msg in full_debate['messages']:
+                                agent = msg['agent']
+                                content = msg['content']
+                                audio_bytes, _ = tts.get_audio_for_agent_with_duration(content, agent)
+                                if audio_bytes:
+                                    b64 = base64.b64encode(audio_bytes).decode()
+                                    audio_data_list.append(b64)
+                            
+                            # Create JavaScript audio queue player
+                            audio_js = f"""
+                            <div id="audio-player-container">
+                                <p id="audio-status">🎙️ กำลังเล่น 1/{len(audio_data_list)}</p>
+                                <audio id="audio-player" controls autoplay style="width: 100%;"></audio>
+                            </div>
+                            <script>
+                                const audioDataList = {audio_data_list};
+                                let currentIndex = 0;
+                                const audioPlayer = document.getElementById('audio-player');
+                                const statusText = document.getElementById('audio-status');
+                                
+                                function playNext() {{
+                                    if (currentIndex < audioDataList.length) {{
+                                        statusText.textContent = '🎙️ กำลังเล่น ' + (currentIndex + 1) + '/' + audioDataList.length;
+                                        audioPlayer.src = 'data:audio/mp3;base64,' + audioDataList[currentIndex];
+                                        audioPlayer.play();
+                                        currentIndex++;
+                                    }} else {{
+                                        statusText.textContent = '✅ เล่นเสร็จแล้ว!';
+                                    }}
+                                }}
+                                
+                                audioPlayer.onended = function() {{
+                                    playNext();
+                                }};
+                                
+                                // Start playing
+                                playNext();
+                            </script>
+                            """
+                            st.components.v1.html(audio_js, height=100)
+                    with col_del:
+                        if st.button("🗑️ ลบ", key=f"del_{debate['id']}", use_container_width=True):
+                            delete_debate(debate['id'])
+                            st.rerun()
+                    
+                    st.divider()
+                    
+                    for msg_idx, msg in enumerate(full_debate['messages']):
                         agent = msg['agent']
                         content = msg['content']
                         
-                        if "Attacker" in agent:
-                            st.markdown(f"<div class='agent-card attacker-card'><b>🔴 ผู้โจมตี</b><br>{content}</div>", unsafe_allow_html=True)
-                        elif "Defender" in agent:
-                            st.markdown(f"<div class='agent-card defender-card'><b>🟢 ผู้ป้องกัน</b><br>{content}</div>", unsafe_allow_html=True)
-                        elif "Strategist" in agent:
-                            st.markdown(f"<div class='agent-card strategist-card'><b>🟣 Strategist</b><br>{content}</div>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"<div class='agent-card'>{content}</div>", unsafe_allow_html=True)
+                        render_message_with_tts(agent, content, f"hist_view_{debate['id']}_{msg_idx}")
                 else:
                     st.warning("ไม่มีข้อความบันทึก")
-                
-                # Delete button
-                if st.button(f"🗑️ ลบ", key=f"del_{debate['id']}"):
-                    delete_debate(debate['id'])
-                    st.rerun()
+                    
+                    # Delete button
+                    if st.button(f"🗑️ ลบ", key=f"del_{debate['id']}"):
+                        delete_debate(debate['id'])
+                        st.rerun()
 
 # ============================================
 # TAB 4: Graph

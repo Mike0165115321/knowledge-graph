@@ -12,7 +12,8 @@ project-sun-tzu/
 │   │   ├── core/             # Core Utilities
 │   │   │   ├── config.py     # Configuration & API Keys
 │   │   │   ├── schemas.py    # Pydantic Models (Nodes, Edges)
-│   │   │   └── neo4j_client.py # Database Interface
+│   │   │   ├── neo4j_client.py # Database Interface
+│   │   │   └── tts.py        # Text-to-Speech Engine (edge-tts)
 │   │   ├── rag/              # Retrieval Augmented Generation
 │   │   │   └── embedding_rag.py   # Vector Search (FAISS + Sentence Transformers)
 │   │   └── debate_ui.py      # Streamlit UI
@@ -161,3 +162,23 @@ Analyst Agent แปลงข้อความ (Unstructured) เป็นก�
    - Agent Responses → Conversation History (Memory)
    - Conversation → Analyst → Nodes/Edges
    - Nodes/Edges → Neo4j (Persistence)
+3. **TTS Output:**
+   - Agent Response → edge-tts → MP3 Audio
+   - Audio → Browser Playback (JavaScript Queue)
+
+---
+
+## 🔊 Text-to-Speech (TTS) System
+
+ระบบเสียงสังเคราะห์เพื่อฟัง AI โต้วาที:
+
+- **Engine:** `edge-tts` (Microsoft Azure Neural Voices)
+- **Voices:** 
+  - 🔴 Attacker: `th-TH-NiwatNeural` (Pitch: -5Hz)
+  - 🟢 Defender: `th-TH-PremwadeeNeural` (Default)
+  - 🟣 Strategist: `th-TH-NiwatNeural` (Pitch: +10Hz)
+- **Features:**
+  - Auto-play mode (toggle in sidebar)
+  - "Play All" button with JavaScript queue (no overlap)
+  - Per-message TTS with agent-specific voices
+- **Duration Calculation:** `mutagen` library reads MP3 metadata for accurate timing
