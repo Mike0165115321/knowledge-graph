@@ -8,9 +8,39 @@
 
 - 🌌 **3D Neural Network Visualization** - กราฟ 3 มิติ WebGL พร้อม glow effects (60 FPS)
 - ⚡ **Synapse Particles** - อนุภาควิ่งตามเส้นเชื่อมเหมือนกระแสประสาท
-- 🤖 **AI Debate System** - 3 AI Agents (Attacker/Defender/Analyst) ถกเถียงสร้าง insights ใหม่
-- 🔍 **ค้นหาได้** - ค้นหา nodes และซูมไปยังตำแหน่ง
-- � **Auto Backup** - ระบบ Backup/Restore ฐานข้อมูล
+- 🤖 **Multi-Agent Debate System** - 4 AI Agents ทำงานร่วมกันเพื่อสร้าง Insights
+- 🧠 **Analytic INFJ Strategist** - Agent เชิงกลยุทธ์ที่จำลองกระบวนการคิดของผู้สร้าง
+- 📚 **RAG Knowledge Base** - ค้นหาข้อมูลจากหนังสือ 120+ เล่มด้วย Vector Search
+- 🔍 **Interactive Graph** - ค้นหา nodes และซูมไปยังตำแหน่ง
+- 💾 **Auto Backup** - ระบบ Backup/Restore ฐานข้อมูล
+
+👉 **[อ่านเอกสารโครงสร้างระบบฉบับเต็ม (System Architecture)](docs/SYSTEM_ARCHITECTURE.md)**
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    User -->|Input| System[Enhanced Debate System]
+    
+    subgraph "Knowledge Base"
+        Books[JSONL Data] --> VectorDB[FAISS Vector Store]
+    end
+    
+    subgraph "Agents"
+        System --> Attacker[🔴 Attacker]
+        System --> Defender[🟢 Defender]
+        System --> Strategist[🟣 Strategist]
+        
+        Attacker & Defender & Strategist <--> VectorDB
+    end
+    
+    subgraph "Analysis & Storage"
+        Agents --> Analyst[🔵 Analyst]
+        Analyst --> Neo4j[(Neo4j Graph DB)]
+    end
+```
 
 ---
 
@@ -93,31 +123,31 @@ cd neo4j-community-5.26.0
 
 ```
 project-sun-tzu/
-├── app/                    # Next.js pages
-├── frontend/src/           # React components
-│   └── components/GraphViz/
-│       └── SunTzuGraph.tsx # 3D Graph Component  
-├── backend/
+├── backend/                  # Core Application Logic (Python)
 │   ├── app/
-│   │   ├── agents/         # AI Agents
-│   │   ├── core/           # Config, Neo4j client
-│   │   ├── debate_ui.py    # Streamlit Debate UI
-│   │   └── main.py         # FastAPI server
-│   └── data/               # JSONL source files
-├── neo4j-local/            # Neo4j Native Installation
-├── backups/                # Database backups
-└── run.sh                  # Master control script
+│   │   ├── agents/           # AI Agents (Attacker, Defender, Strategist, Analyst)
+│   │   ├── rag/              # Vector Search (Embedding Based)
+│   │   ├── core/             # Config, Neo4j client
+│   │   └── debate_ui.py      # Streamlit Debate UI
+│   ├── data/                 # Raw Book Data (JSONL)
+│   └── .env                  # API Keys & Secrets
+├── frontend/                 # Frontend (Next.js)
+│   └── src/components/GraphViz/ # 3D Graph Components
+├── neo4j-local/              # Neo4j Database
+├── docs/                     # Documentation
+└── run.sh                    # Master control script
 ```
 
 ---
 
 ## 🤖 AI Agents
 
-| Agent | Role |
-|-------|------|
-| **Attacker** 🔴 | วิเคราะห์เทคนิคเชิงรุก หาจุดอ่อน |
-| **Defender** 🟢 | วิเคราะห์การป้องกัน หาทางแก้ |
-| **Analyst** 🔵 | สกัด Knowledge Graph จากการถกเถียง |
+| Agent | Role | Detail |
+|-------|------|--------|
+| **Attacker** 🔴 | ผู้โจมตี | วิเคราะห์เทคนิคเชิงรุก หาจุดอ่อน และช่องว่าง |
+| **Defender** 🟢 | ผู้ป้องกัน | วิเคราะห์ความเสี่ยง หาทางแก้ และสร้างเกราะคุ้มกัน |
+| **Strategist** 🟣 | นักกลยุทธ์ | **(New)** Analytic INFJ Persona วิเคราะห์ Game State และ Framing |
+| **Analyst** 🔵 | ผู้วิเคราะห์ | สกัด Knowledge Graph (Nodes/Edges) จากบทสนทนา |
 
 ---
 
@@ -134,7 +164,7 @@ project-sun-tzu/
 ## 🛠️ Tech Stack
 
 - **Frontend:** Next.js 16, React, react-force-graph-3d, Three.js
-- **Backend:** FastAPI, Python, LangChain, Streamlit
+- **Backend:** Python 3.12, LangChain, Streamlit, FAISS (Vector DB)
 - **Database:** Neo4j (Native Installation)
 - **AI:** Google Gemini 2.5 Flash
 
