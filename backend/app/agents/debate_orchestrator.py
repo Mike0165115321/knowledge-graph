@@ -5,8 +5,8 @@ Auto-selects top topics and orchestrates the debate flow
 """
 import time
 from typing import List, Tuple
-from .predator import predator
-from .guardian import guardian
+from .predator import PredatorAgent
+from .guardian import GuardianAgent
 from .cartographer import cartographer
 from ..core.schemas import GraphNode, GraphEdge, DebateSession, DebateMessage
 
@@ -17,9 +17,10 @@ class DebateOrchestrator:
     Extracts knowledge graph from debate insights
     """
     
-    def __init__(self, delay_between_calls: float = 1.0):
-        self.predator = predator
-        self.guardian = guardian
+    def __init__(self, rag=None, delay_between_calls: float = 1.0):
+        # Create agent instances with optional RAG
+        self.predator = PredatorAgent(rag=rag)
+        self.guardian = GuardianAgent(rag=rag)
         self.cartographer = cartographer
         self.delay = delay_between_calls  # Prevent rate limiting
         self.debate_history: List[DebateSession] = []
@@ -148,5 +149,5 @@ class DebateOrchestrator:
         }
 
 
-# Singleton instance
-debate_orchestrator = DebateOrchestrator()
+# Note: Singleton removed - DebateOrchestrator requires RAG to be passed
+# Use: orchestrator = DebateOrchestrator(rag=your_rag_instance)

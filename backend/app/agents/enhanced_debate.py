@@ -20,6 +20,11 @@ except ImportError:
     HAS_EMBEDDINGS = False
     EmbeddingRAG = None
 
+# Import Specialized Agents
+from .predator import PredatorAgent
+from .guardian import GuardianAgent
+# Note: AnalystAgent is defined in this file, not imported
+
 
 class BookRAG:
     """Simple RAG system to retrieve relevant book content"""
@@ -412,34 +417,18 @@ class EnhancedDebateSystem:
         
         # Initialize RAG (prefer Embedding RAG if available)
         if use_embeddings and HAS_EMBEDDINGS:
-            print("  📦 Using Embedding RAG...")
-            self.rag = get_embedding_rag(
-                model_path=embedding_model_path,
-                data_dir=data_dir
-            )
-            self.rag.initialize()  # Build/load index
+            print(f"  📦 Using Embedding RAG...")
+            self.rag = get_embedding_rag(model_path=embedding_model_path, data_dir=data_dir)
+            self.rag.initialize()
         else:
-            print("  📝 Using Keyword RAG (fallback)...")
-            self.rag = BookRAG(data_dir)
+            print(f"  📖 Using Simple RAG...")
+            self.rag = BookRAG(data_dir=data_dir)
         
-        # Initialize Reader Agents
-        self.attacker = ReaderAgent(
-            name="Attacker",
-            perspective="ผู้โจมตี/ผู้ใช้กลยุทธ์",
-            system_prompt="""คุณคือ "ผู้โจมตี" - ผู้เชี่ยวชาญการใช้กลยุทธ์เชิงรุก
-คุณมองหาวิธีใช้ความรู้เพื่อให้ได้เปรียบ วิเคราะห์จุดอ่อนของเป้าหมาย
-และหาวิธีบรรลุเป้าหมายอย่างมีประสิทธิภาพ""",
-            rag=self.rag
-        )
-        
-        self.defender = ReaderAgent(
-            name="Defender", 
-            perspective="ผู้ป้องกัน/ผู้รักษา",
-            system_prompt="""คุณคือ "ผู้ป้องกัน" - ผู้เชี่ยวชาญการป้องกันและต้านทาน
-คุณมองหาจุดอ่อน ความเสี่ยง และวิธีป้องกันตัวจากกลยุทธ์ต่างๆ
-คุณเตือนถึงผลเสียและเสนอทางป้องกัน""",
-            rag=self.rag
-        )
+        # Initialize Agents with Specialized Personas
+        self.attacker = PredatorAgent(rag=self.rag)
+        self.defender = GuardianAgent(rag=self.rag)
+        print("  🔴 Predator Agent initialized")
+        print("  🟢 Guardian Agent initialized")
         
         # Initialize Strategist (optional)
         self.enable_strategist = enable_strategist

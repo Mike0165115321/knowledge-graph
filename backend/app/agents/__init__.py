@@ -3,15 +3,17 @@
 AI Agents Package
 """
 from .base_agent import BaseAgent, RateLimitError
-from .predator import predator, PredatorAgent
-from .guardian import guardian, GuardianAgent
+from .reader_agent import ReaderAgent
+from .predator import PredatorAgent
+from .guardian import GuardianAgent
 from .cartographer import cartographer, CartographerAgent
-from .debate_orchestrator import debate_orchestrator, DebateOrchestrator
+from .debate_orchestrator import DebateOrchestrator
 
 __all__ = [
     'BaseAgent', 'RateLimitError',
-    'predator', 'PredatorAgent',
-    'guardian', 'GuardianAgent', 
+    'ReaderAgent',
+    'PredatorAgent',
+    'GuardianAgent', 
     'cartographer', 'CartographerAgent',
-    'debate_orchestrator', 'DebateOrchestrator'
+    'DebateOrchestrator'
 ]
