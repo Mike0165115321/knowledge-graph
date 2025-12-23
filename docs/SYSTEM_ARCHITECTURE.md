@@ -32,31 +32,61 @@ project-sun-tzu/
 
 ```mermaid
 graph TD
-    User[User / UI] -->|Input Topic| Orchestrator[EnhancedDebateSystem]
+    %% Nodes
+    User(["👤 User / UI"])
     
-    subgraph "Knowledge Core"
-        Books[Book Data (JSONL)] -->|Ingest| VectorDB[FAISS Vector Store]
-        Model[Embedding Model<br/>e5-large] -.->|Encode| VectorDB
+    subgraph Core ["🧠 Enhanced Debate Orchestrator"]
+        System[["⚙️ Debate Controller"]]
     end
     
-    subgraph "Debate Arena"
-        Orchestrator -->|Turn 1| Attacker[🔴 Attacker Agent]
-        Orchestrator -->|Turn 2| Defender[🟢 Defender Agent]
-        Orchestrator -->|Turn 3| Strategist[🟣 Strategist Agent]
-        
-        Attacker <-->|Query Query| VectorDB
-        Defender <-->|Query Context| VectorDB
-        Strategist <-->|Analyze Game| VectorDB
+    subgraph Knowledge ["📚 Knowledge Base"]
+        Books[("📖 Book Data (JSONL)")]
+        VectorDB[("🧩 FAISS Vector DB")]
     end
     
-    subgraph "Analysis Engine"
-        DebateStream[Conversation Stream] --> Analyst[🔵 Analyst Agent]
-        Analyst -->|Extract| Nodes[Nodes]
-        Analyst -->|Extract| Edges[Edges]
-        Nodes & Edges --> DB[(Neo4j Graph DB)]
+    subgraph Agents ["🤖 AI Agents Arena"]
+        Attacker{{"🔴 Attacker<br/>(Aggressive)"}}
+        Defender{{"🟢 Defender<br/>(Protective)"}}
+        Strategist{{"🟣 Strategist<br/>(Analytic INFJ)"}}
     end
     
-    Attacker & Defender & Strategist --> DebateStream
+    subgraph Analysis ["📊 Analysis Engine"]
+        Analyst["🔵 Analyst<br/>(Graph Extractor)"]
+        Neo4j[("🗄️ Neo4j<br/>(Knowledge Graph)")]
+    end
+    
+    %% Connections
+    User ==>|1. Topic| System
+    
+    Books -->|Ingest| VectorDB
+    VectorDB -.->|Context| Agents
+    
+    System ==>|2. Turn 1| Attacker
+    System ==>|3. Turn 2| Defender
+    System ==>|4. Turn 3| Strategist
+    
+    Agents ==>|5. Debate Content| System
+    System ==>|6. History| Analyst
+    Analyst ==>|7. Nodes & Edges| Neo4j
+    
+    %% Styling
+    classDef user fill:#2d3748,stroke:#fff,color:#fff
+    classDef core fill:#4a5568,stroke:#a0aec0,color:#fff
+    classDef kb fill:#2c5282,stroke:#63b3ed,color:#fff
+    classDef attack fill:#742a2a,stroke:#fc8181,color:#fff
+    classDef defend fill:#22543d,stroke:#68d391,color:#fff
+    classDef strategy fill:#553c9a,stroke:#9f7aea,color:#fff
+    classDef analysis fill:#2b6cb0,stroke:#63b3ed,color:#fff
+    classDef db fill:#000000,stroke:#4fd1c5,color:#fff
+
+    class User user
+    class System core
+    class Books,VectorDB kb
+    class Attacker attack
+    class Defender defend
+    class Strategist strategy
+    class Analyst analysis
+    class Neo4j db
 ```
 
 ---
