@@ -187,6 +187,45 @@ class ReaderAgent:
         return f"[{self.name} ไม่สามารถตอบได้]"
 
 
+class StrategistAgent(ReaderAgent):
+    """
+    Strategist Agent - ตัวแทนเชิงกลยุทธ์ของผู้สร้างระบบ (Analytic INFJ)
+    วิเคราะห์ Game State, Framing, Hidden Intent, และ Implications
+    """
+    
+    def __init__(self, rag: Union['BookRAG', 'EmbeddingRAG']):
+        # Import the strategist prompt
+        from ..core.strategist_config import STRATEGIST_SYSTEM_PROMPT
+        
+        super().__init__(
+            name="Strategist",
+            perspective="ตัวแทนเชิงกลยุทธ์ (Analytic INFJ)",
+            system_prompt=STRATEGIST_SYSTEM_PROMPT,
+            rag=rag
+        )
+    
+    def _init_llm(self):
+        """Override with lower temperature for analytical output"""
+        api_key = settings.get_api_key()
+        self._llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=api_key,
+            temperature=0.5  # Lower temperature for strategic analysis
+        )
+    
+    def _refresh_key(self):
+        """Refresh API key if rate limited"""
+        settings.rotate_api_key()
+        api_key = settings.get_api_key()
+        print(f"    🔄 Rotated Key for Strategist (Index: {settings.api_key_manager.current_index})")
+        
+        self._llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=api_key,
+            temperature=0.5
+        )
+
+
 class AnalystAgent:
     """Agent that analyzes debates and extracts knowledge graph"""
     
@@ -358,6 +397,7 @@ class EnhancedDebateSystem:
     """
     Multi-round debate system with:
     - 2 Reader agents with book access (via Embedding RAG or keyword search)
+    - 1 Strategist agent for strategic analysis (optional)
     - 1 Analyst agent for graph extraction
     """
     
@@ -365,7 +405,8 @@ class EnhancedDebateSystem:
         self, 
         data_dir: str = "data",
         embedding_model_path: str = "/home/mikedev/MyModels/Model-RAG/intfloat-multilingual-e5-large",
-        use_embeddings: bool = True
+        use_embeddings: bool = True,
+        enable_strategist: bool = True  # NEW: เปิด/ปิด Strategist Agent
     ):
         print("🚀 Initializing Enhanced Debate System...")
         
@@ -399,6 +440,14 @@ class EnhancedDebateSystem:
 คุณเตือนถึงผลเสียและเสนอทางป้องกัน""",
             rag=self.rag
         )
+        
+        # Initialize Strategist (optional)
+        self.enable_strategist = enable_strategist
+        if enable_strategist:
+            self.strategist = StrategistAgent(rag=self.rag)
+            print("  🟣 Strategist Agent initialized")
+        else:
+            self.strategist = None
         
         # Initialize Analyst
         self.analyst = AnalystAgent()
@@ -450,6 +499,17 @@ class EnhancedDebateSystem:
             })
             print(f"     ✓ Defender responded")
             time.sleep(delay)
+            
+            # Strategist analyzes (if enabled)
+            if self.enable_strategist and self.strategist:
+                print(f"  🟣 Strategist analyzing...")
+                strategist_response = self.strategist.respond(topic, conversation)
+                conversation.append({
+                    "agent": "🟣 Strategist",
+                    "content": strategist_response
+                })
+                print(f"     ✓ Strategist responded")
+                time.sleep(delay)
         
         # Analyst extracts graph
         print(f"\n  🔵 Analyst extracting knowledge graph...")
@@ -519,6 +579,21 @@ class EnhancedDebateSystem:
                 "content": defender_response
             }
             time.sleep(delay)
+            
+            # Strategist analyzes (if enabled)
+            if self.enable_strategist and self.strategist:
+                yield {"type": "thinking", "agent": "🟣 Strategist"}
+                strategist_response = self.strategist.respond(topic, conversation)
+                conversation.append({
+                    "agent": "🟣 Strategist",
+                    "content": strategist_response
+                })
+                yield {
+                    "type": "message", 
+                    "agent": "🟣 Strategist", 
+                    "content": strategist_response
+                }
+                time.sleep(delay)
 
             # Incremental Analysis (Analyst peeks every round)
             yield {"type": "thinking", "agent": "🔵 Analyst", "message": f"Analyzing Round {round_num + 1}..."}

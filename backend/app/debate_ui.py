@@ -32,6 +32,7 @@ st.markdown("""
     }
     .attacker-card { border-left: 5px solid #ff4b4b; }
     .defender-card { border-left: 5px solid #00c853; }
+    .strategist-card { border-left: 5px solid #9c27b0; }
     .topic-card {
         padding: 10px; border-radius: 6px; border: 1px solid #30363d;
         background-color: #21262d; margin: 5px 0;
@@ -142,6 +143,8 @@ with tab1:
                         elif "Defender" in event['agent']:
                             with col2:
                                 st.markdown(f"**🟢 ผู้ป้องกัน:**\n\n{event['content']}")
+                        elif "Strategist" in event['agent']:
+                            st.markdown(f"**🟣 Strategist:**\n\n{event['content']}")
                     
                     elif event['type'] == 'graph_update':
                         node_count += len(event['nodes'])
@@ -265,6 +268,9 @@ with tab2:
                             elif "Defender" in agent:
                                 st.markdown(f"**🟢 ผู้ป้องกัน:**")
                                 st.success(content)
+                            elif "Strategist" in agent:
+                                st.markdown(f"**🟣 Strategist:**")
+                                st.warning(content)
                     
                     elif event['type'] == 'graph_update':
                         nodes = event['nodes']
@@ -372,6 +378,8 @@ with tab3:
                             st.markdown(f"<div class='agent-card attacker-card'><b>🔴 ผู้โจมตี</b><br>{content}</div>", unsafe_allow_html=True)
                         elif "Defender" in agent:
                             st.markdown(f"<div class='agent-card defender-card'><b>🟢 ผู้ป้องกัน</b><br>{content}</div>", unsafe_allow_html=True)
+                        elif "Strategist" in agent:
+                            st.markdown(f"<div class='agent-card strategist-card'><b>🟣 Strategist</b><br>{content}</div>", unsafe_allow_html=True)
                         else:
                             st.markdown(f"<div class='agent-card'>{content}</div>", unsafe_allow_html=True)
                 else:
