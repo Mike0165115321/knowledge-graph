@@ -26,15 +26,15 @@ def render_message_with_tts(agent, content, key_prefix, auto_play=False):
     # Determine style based on agent
     style_class = "agent-card"
     label = agent
-    if "Attacker" in agent:
+    if "Attacker" in agent or "Time" in agent:
         style_class = "agent-card attacker-card"
-        label = "🔴 ผู้โจมตี"
-    elif "Defender" in agent:
+        label = "🔴 ทาม (Time)"
+    elif "Defender" in agent or "Ann" in agent:
         style_class = "agent-card defender-card"
-        label = "🟢 ผู้ป้องกัน"
-    elif "Strategist" in agent:
+        label = "🟢 แอน (Ann)"
+    elif "Strategist" in agent or "Mike" in agent:
         style_class = "agent-card strategist-card"
-        label = "🟣 Strategist"
+        label = "🟣 ไมค์ (Mike)"
     
     # Display message card
     st.markdown(f"<div class='{style_class}'><b>{label}</b><br>{content}</div>", unsafe_allow_html=True)

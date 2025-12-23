@@ -46,9 +46,9 @@ graph TD
     end
     
     subgraph Agents ["🤖 AI Agents Arena"]
-        Attacker{{"🔴 Attacker<br/>(Aggressive)"}}
-        Defender{{"🟢 Defender<br/>(Protective)"}}
-        Strategist{{"🟣 Strategist<br/>(Analytic INFJ)"}}
+        Attacker{{"🔴 Time ทาม<br/>(Attacker)"}}
+        Defender{{"🟢 Ann แอน<br/>(Defender)"}}
+        Strategist{{"🟣 Mike ไมค์<br/>(Strategist)"}}
     end
     
     subgraph Analysis ["📊 Analysis Engine"]

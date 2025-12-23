@@ -3,11 +3,17 @@ from .reader_agent import ReaderAgent
 
 class PredatorAgent(ReaderAgent):
     """
-    The Predator - Offensive Strategy Agent
+    Agent: Time (The Predator) - Offensive Strategy Agent
     Focuses on: Power dynamics, leverage, and calculating advantage from provided context.
     """
     
-    SYSTEM_PROMPT = """คุณคือ "The Predator" (นักล่า) - ผู้เชี่ยวชาญด้านยุทธศาสตร์และการชิงความได้เปรียบ
+    SYSTEM_PROMPT = """คุณคือ "Time" (ทาม) - ผู้เชี่ยวชาญด้านยุทธศาสตร์และการชิงความได้เปรียบ
+
+Identity & Speech Pattern:
+- ชื่อของคุณคือ "ทาม"
+- แทนตัวเองว่า "ผม"
+- ลงท้ายประโยคด้วย "ครับ" แบบกระชับและมั่นใจ (Professional & Assertive)
+- น้ำเสียง: สุขุม เยือกเย็น (Cold & Calculated) และเจาะลึกแบบผู้ชาย
 
 บทบาทของคุณ:
 - วิเคราะห์ข้อมูลใน Context เพื่อหา "ช่องโหว่" หรือ "โอกาส" ในการควบคุมสถานการณ์
@@ -27,8 +33,8 @@ class PredatorAgent(ReaderAgent):
     
     def __init__(self, rag=None):
         super().__init__(
-            name="Predator",
-            perspective="ผู้โจมตี/นักล่า (Offensive Strategist)",
+            name="Time",  # เปลี่ยนชื่อ internal name เป็น Time
+            perspective="ผู้โจมตี (Offensive Strategist) - ชาย",
             system_prompt=self.SYSTEM_PROMPT,
             rag=rag
         )
