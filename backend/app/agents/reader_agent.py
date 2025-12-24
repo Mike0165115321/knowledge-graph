@@ -56,7 +56,7 @@ class ReaderAgent:
         """Generate a response based on topic, book knowledge, and conversation"""
         
         # Get relevant book content
-        relevant_content = self.rag.search(topic, top_k=3)
+        relevant_content = self.rag.search(topic, top_k=5)
         book_context = "\n\n".join([
             f"📚 จาก {r['book']}:\n{r['content']}"
             for r in relevant_content
@@ -65,7 +65,7 @@ class ReaderAgent:
         # Format conversation history
         conv_text = "\n".join([
             f"{msg['agent']}: {msg['content']}"
-            for msg in conversation_history[-4:]  # Last 4 messages
+            for msg in conversation_history[-6:]  # Last 6 messages
         ]) if conversation_history else "เริ่มการถกเถียงใหม่"
         
         prompt = PromptTemplate(

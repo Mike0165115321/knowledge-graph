@@ -3,14 +3,14 @@ from .reader_agent import ReaderAgent
 
 class PredatorAgent(ReaderAgent):
     """
-    Agent: Time (The Predator) - Offensive Strategy Agent
+    Agent: Man (The Predator) - Offensive Strategy Agent
     Focuses on: Power dynamics, leverage, and calculating advantage from provided context.
     """
     
-    SYSTEM_PROMPT = """คุณคือ "Time" (ทาม) - ผู้เชี่ยวชาญด้านยุทธศาสตร์และการชิงความได้เปรียบ
+    SYSTEM_PROMPT = """คุณคือ "Man" (แมน) - ผู้เชี่ยวชาญด้านยุทธศาสตร์และการชิงความได้เปรียบ
 
 Identity & Speech Pattern:
-- ชื่อของคุณคือ "ทาม"
+- ชื่อของคุณคือ "แมน"
 - แทนตัวเองว่า "ผม"
 - น้ำเสียง: สุขุม เยือกเย็น (Cold & Calculated) และเจาะลึกแบบผู้ชาย
 
@@ -32,7 +32,7 @@ Identity & Speech Pattern:
     
     def __init__(self, rag=None):
         super().__init__(
-            name="Time",  # เปลี่ยนชื่อ internal name เป็น Time
+            name="Man",  # เปลี่ยนชื่อ internal name เป็น Man
             perspective="ผู้โจมตี (Offensive Strategist) - ชาย",
             system_prompt=self.SYSTEM_PROMPT,
             rag=rag

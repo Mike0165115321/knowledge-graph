@@ -470,13 +470,13 @@ class EnhancedDebateSystem:
             print(f"\n--- Round {round_num + 1}/{rounds} ---")
             
             # Attacker speaks
-            print(f"  🔴 Attacker thinking...")
+            print(f"  🔴 แมน thinking...")
             attacker_response = self.attacker.respond(topic, conversation)
             conversation.append({
-                "agent": "🔴 Attacker",
+                "agent": "🔴 แมน",
                 "content": attacker_response
             })
-            print(f"     ✓ Attacker responded")
+            print(f"     ✓ แมน responded")
             time.sleep(delay)
             
             # Defender responds
@@ -542,15 +542,15 @@ class EnhancedDebateSystem:
             yield {"type": "info", "message": f"\n--- Round {round_num + 1}/{rounds} ---"}
             
             # Attacker speaks
-            yield {"type": "thinking", "agent": "🔴 Attacker"}
+            yield {"type": "thinking", "agent": "🔴 แมน"}
             attacker_response = self.attacker.respond(topic, conversation)
             conversation.append({
-                "agent": "🔴 Attacker",
+                "agent": "🔴 แมน",
                 "content": attacker_response
             })
             yield {
                 "type": "message", 
-                "agent": "🔴 Attacker", 
+                "agent": "🔴 แมน", 
                 "content": attacker_response
             }
             time.sleep(delay)
